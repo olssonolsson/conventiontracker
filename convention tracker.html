@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1612">
+<title>Convention of the Elements — Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght=400;600;700&family=Crimson+Text:ital,wght=0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1612;
+    --surface: #221e18;
+    --surface2: #2a2520;
+    --border: rgba(255,255,255,0.1);
+    --border2: rgba(255,255,255,0.18);
+    --text: #f0e8d8;
+    --muted: #9a8e7a;
+    --fire: #E24B4A;
+    --fire-glow: #F09595;
+    --arcane: #7F77DD;
+    --arcane-glow: #AFA9EC;
+    --cold: #378ADD;
+    --cold-glow: #85B7EB;
+    --lightning: #EF9F27;
+    --lightning-glow: #FAC775;
+    --physical: #888780;
+    --physical-glow: #B4B2A9;
+    --poison: #639922;
+    --poison-glow: #97C459;
+    --holy: #BAA227;
+    --holy-glow: #FAEEDA;
+    --radius: 8px;
+    --radius-lg: 12px;
+    
+    /* Dynamiska färger som styrs av JS */
+    --warn-color: #E24B4A;
+    --pre-warn-color: rgba(226,75,74,0.15);
+    --warn-bg-active: #2a0a08;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Text', Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem 4rem;
+    transition: background 0.2s ease;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 0%, rgba(226,75,74,0.0) 0%, rgba(226,75,74,0.0) 100%);
+    transition: background 0.3s ease;
+    z-index: 0;
+  }
+
+/* Animationer för Förvarning (Innan elementet startar) */
+  @keyframes pre-warn-blink-anim {
+    0%, 49% { background: var(--bg); }
+    50%, 100% { background: var(--pre-warn-color); }
+  }
+  body.pre-warn-blink {
+    animation: pre-warn-blink-anim 1s step-end infinite;
+  }
+  body.pre-warn-solid {
+    background: var(--pre-warn-color);
+  }
+
+  /* Animationer för Aktivt Element (Placerad under för att skriva över förvarning) */
+  @keyframes active-blink-anim {
+    0%, 49% { background: var(--bg); }
+    50%, 100% { background: var(--warn-bg-active); }
+  }
+  body.warn-bg-solid, body.warn-bg-solid.pre-warn-blink, body.warn-bg-solid.pre-warn-solid {
+    background: var(--warn-bg-active) !important;
+    animation: none;
+  }
+  body.warn-bg-blink, body.warn-bg-blink.pre-warn-blink, body.warn-bg-blink.pre-warn-solid {
+    animation: active-blink-anim 0.5s step-end infinite !important;
+  }
+
+  body.warn-bg-solid::before {
+    background: radial-gradient(ellipse at 50% -20%, var(--warn-color) 0%, rgba(0,0,0,0.5) 70%);
+    opacity: 0.4;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 680px;
+    position: relative;
+    z-index: 1;
+  }
+
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1.5rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 16px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--fire); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .element-ring {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    margin: 1.5rem 0;
+    position: relative;
+    height: 80px;
+    flex-wrap: wrap;
+  }
+
+  .elem-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    transition: all 0.3s ease;
+    opacity: 0.4;
+    min-width: 70px;
+  }
+  .elem-slot.active-elem {
+    opacity: 1;
+    transform: scale(1.18);
+    border: 1.5px solid currentColor;
+    background: rgba(255,255,255,0.05);
+  }
+  .elem-slot.next-elem { opacity: 0.7; transform: scale(1.05); }
+
+  .elem-icon { font-size: 26px; line-height: 1; }
+  .elem-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .big-timer { text-align: center; margin: 1rem 0; }
+  .timer-element-name {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .timer-display {
+    font-family: 'Cinzel', serif;
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -2px;
+    transition: color 0.3s;
+  }
+  .timer-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  .fire-countdown {
+    text-align: center;
+    margin: 0.5rem 0 1.5rem;
+    background: var(--surface);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+  .fire-countdown-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .fire-countdown-num {
+    font-family: 'Cinzel', serif;
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--warn-color);
+    line-height: 1;
+    letter-spacing: -2px;
+    transition: color 0.3s;
+    position: relative;
+  }
+
+  /* Varningssiffra som blinkar synkat med Chroma */
+  #warn-flash-num {
+    display: none;
+    position: absolute;
+    inset: 0;
+    font-family: 'Cinzel', serif;
+    font-size: inherit;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -2px;
+    color: #fff;
+    text-shadow: 0 0 24px var(--warn-color), 0 0 48px var(--warn-color);
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    pointer-events: none;
+  }
+  #warn-flash-num.visible { display: flex; }
+  .fire-countdown-label2 { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  
+  .progress-bar-wrap {
+    height: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    margin-top: 14px;
+    overflow: hidden;
+    border: 0.5px solid var(--border);
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    width: 0%;
+    background: var(--warn-color);
+    box-shadow: 0 0 8px var(--warn-color);
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  .ctrl-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 8px 20px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .ctrl-btn:hover { background: var(--surface2); }
+  .ctrl-btn:active { transform: scale(0.97); }
+  .ctrl-btn.primary { background: var(--fire); color: white; border-color: var(--fire); }
+  .ctrl-btn.primary:hover { opacity: 0.88; }
+
+  /* Razer Status-ruta */
+  .chroma-status-box {
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+    color: var(--muted);
+  }
+  .chroma-status-box span {
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.2);
+  }
+
+  .next-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0.25rem 0;
+  }
+
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  .rotation-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    min-height: 52px;
+  }
+
+  .rot-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: grab;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+  .rot-chip.dragging { opacity: 0.4; cursor: grabbing; }
+  .rot-chip.drag-over { border-style: dashed !important; }
+  .rot-chip-del { font-size: 14px; cursor: pointer; opacity: 0.5; font-family: sans-serif; line-height: 1; }
+  .rot-chip-del:hover { opacity: 1; }
+
+  .elem-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .pick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    transition: background 0.15s;
+  }
+  .pick-btn:hover { background: var(--surface2); }
+  .pick-btn .pick-icon { font-size: 18px; }
+
+  .duration-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .duration-row input[type=range] { flex: 1; accent-color: var(--fire); }
+  .duration-val {
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .notif-card {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .toggle {
+    width: 36px; height: 20px;
+    background: var(--border2);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none; outline: none;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--fire); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 19px; }
+
+  .flex-select-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .flex-select-row span { min-width: 140px; }
+  .flex-select-row select, .flex-select-row input[type=color] { flex: 1; }
+
+  input[type=color] {
+    background: none;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    height: 28px;
+    cursor: pointer;
+  }
+
+  select {
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--surface);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'Cinzel', serif;
+  }
+
+  input[type=range] { accent-color: var(--fire); }
+  input[type=number] { accent-color: var(--fire); }
+
+  .metro-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .metro-row input[type=range] { flex: 1; }
+
+  .fire-active-banner {
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    background: var(--warn-color);
+    color: #fff;
+    animation: fire-flash 0.6s ease-in-out;
+  }
+  @keyframes fire-flash {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    60% { transform: scale(1.03); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .cue-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .cue-row input[type=number] {
+    width: 65px;
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 5px 6px;
+    background: var(--surface);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .cue-row input[type=text] {
+    flex: 1;
+    font-size: 12px;
+    padding: 5px 8px;
+    background: var(--surface);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'Crimson Text', serif;
+  }
+  .cue-del {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    font-family: sans-serif;
+  }
+  .cue-del:hover { color: var(--fire); }
+
+  .test-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .test-row input {
+    flex: 1;
+    font-size: 13px;
+    padding: 6px 10px;
+    background: var(--surface);
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'Crimson Text', serif;
+  }
+
+  /* ============================================
+     MINIMERAT LÄGE
+     ============================================ */
+  body.mini-mode {
+    padding: 0;
+    min-height: 100dvh;
+    align-items: stretch;
+  }
+  body.mini-mode #app {
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  body.mini-mode .tabs,
+  body.mini-mode h1,
+  body.mini-mode #panel-rotation,
+  body.mini-mode #panel-notifs,
+  body.mini-mode .chroma-status-box,
+  body.mini-mode .next-row,
+  body.mini-mode .big-timer,
+  body.mini-mode .element-ring {
+    display: none !important;
+  }
+  body.mini-mode #panel-tracker {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  /* Minimerat: stor countdown som fyller skärmen */
+  body.mini-mode .fire-countdown {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+  }
+  body.mini-mode .fire-countdown-num {
+    font-size: clamp(80px, 22vw, 160px);
+    letter-spacing: -4px;
+  }
+  body.mini-mode .fire-countdown-label {
+    font-size: clamp(11px, 3vw, 16px);
+    letter-spacing: 0.2em;
+  }
+  body.mini-mode .fire-countdown-label2 {
+    font-size: clamp(12px, 3vw, 16px);
+  }
+  body.mini-mode .progress-bar-wrap {
+    width: 100%;
+    max-width: 320px;
+    height: 6px;
+    margin-top: 16px;
+  }
+
+  /* Minimerat: mini element-ring under countdown */
+  #mini-ring {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  body.mini-mode #mini-ring { display: flex; }
+
+  .mini-elem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 8px;
+    border-radius: var(--radius);
+    opacity: 0.35;
+    transition: all 0.25s ease;
+    min-width: 44px;
+  }
+  .mini-elem.active-elem {
+    opacity: 1;
+    border: 1.5px solid currentColor;
+    background: rgba(255,255,255,0.06);
+    transform: scale(1.12);
+  }
+  .mini-elem.next-elem { opacity: 0.65; }
+  .mini-elem-icon { font-size: 18px; line-height: 1; }
+  .mini-elem-label {
+    font-family: 'Cinzel', serif;
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Minimerat: kontrollknappar längst ner, stora för pekskärm */
+  body.mini-mode .controls-row {
+    margin: 0;
+    padding: 10px 12px;
+    gap: 8px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+  }
+  body.mini-mode .ctrl-btn {
+    flex: 1;
+    padding: 14px 8px;
+    font-size: 12px;
+    touch-action: manipulation;
+  }
+
+  /* Mini-mode toggle knapp */
+  #mini-toggle-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    color: var(--muted);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+  }
+  #mini-toggle-btn:hover { color: var(--text); background: var(--surface); }
+
+  /* ============================================
+     MOBILOPTIMERING
+     ============================================ */
+  @media (max-width: 480px) {
+    body { padding: 1rem 0.75rem 3rem; }
+
+    h1 { font-size: 14px; margin-bottom: 1rem; }
+
+    .tab-btn { padding: 8px 10px; font-size: 10px; }
+
+    .fire-countdown { padding: 1rem; }
+    .fire-countdown-num { font-size: 56px; }
+
+    .element-ring { height: auto; gap: 2px; margin: 1rem 0; }
+    .elem-slot { min-width: 52px; padding: 6px 6px; }
+    .elem-icon { font-size: 20px; }
+
+    .timer-display { font-size: 52px; }
+
+    .controls-row { flex-wrap: wrap; }
+    .ctrl-btn {
+      padding: 12px 12px;
+      font-size: 11px;
+      touch-action: manipulation; /* Förhindra double-tap zoom */
+    }
+
+    /* Större tryckyta för toggles */
+    .toggle { width: 44px; height: 24px; }
+    .toggle::after { width: 18px; height: 18px; top: 3px; left: 3px; }
+    .toggle.on::after { left: 23px; }
+
+    select, input[type=number], input[type=text] {
+      font-size: 16px; /* Förhindrar iOS zoom vid fokus */
+    }
+  }
+
+  /* Liggande läge på mobil — extra kompakt */
+  @media (max-height: 500px) and (max-width: 900px) {
+    body { padding: 0.5rem 0.75rem 1rem; }
+    h1 { font-size: 12px; margin-bottom: 0.5rem; }
+    .fire-countdown { padding: 0.75rem; margin-bottom: 0.75rem; }
+    .fire-countdown-num { font-size: 48px; }
+    .element-ring { margin: 0.5rem 0; height: 60px; }
+    .big-timer { margin: 0.25rem 0; }
+    .timer-display { font-size: 40px; }
+    .controls-row { margin: 0.75rem 0 0.25rem; }
+  }
+</style>
+</head>
+<body>
+<button id="mini-toggle-btn" onclick="toggleMiniMode()" title="Minimerat läge">⊡ Mini</button>
+<div id="app">
+  <h1>⚗ Convention of Elements ⚗</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tracker')">Tracker</button>
+    <button class="tab-btn" onclick="switchTab('rotation')">Rotation</button>
+    <button class="tab-btn" onclick="switchTab('notifs')">Meddelanden & Visuellt</button>
+  </div>
+
+  <div id="panel-tracker" class="panel active">
+    <div class="fire-countdown">
+      <div class="fire-countdown-label" id="fire-cd-label">Mål om</div>
+      <div class="fire-countdown-num" id="fire-cd-num">—<div id="warn-flash-num"></div></div>
+      <div class="fire-countdown-label2" id="fire-cd-sub">sekunder</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="warn-progress-fill"></div>
+      </div>
+    </div>
+    <!-- Mini-ring syns bara i minimerat läge -->
+    <div id="mini-ring"></div>
+
+    <div class="element-ring" id="elem-ring"></div>
+
+    <div class="big-timer">
+      <div class="timer-element-name" id="active-elem-name">—</div>
+      <div class="timer-display" id="timer-num">—</div>
+      <div class="timer-sub">sekunder kvar</div>
+    </div>
+
+	<div id="fire-banner" style="display:none" class="fire-active-banner">🔥 TARGET AKTIVT 🔥</div>
+	  
+    <div class="next-row">
+      Nästa: <span id="next-elem-label" style="font-weight:600; color: var(--text)">—</span>
+    </div>
+
+    <div class="controls-row">
+      <button class="ctrl-btn primary" id="start-btn" onclick="toggleTimer()">Start</button>
+      <button class="ctrl-btn" onclick="resetTimer()">Återställ</button>
+      <button class="ctrl-btn" onclick="jumpToTarget()">Hoppa till mål</button>
+    </div>
+
+    <div class="chroma-status-box" id="chroma-status">
+      Razer Chroma: <span style="color:#9a8e7a;">Söker anslutning...</span>
+    </div>
+  </div>
+
+  <div id="panel-rotation" class="panel">
+    <div class="section-title">Aktiv rotation (dra för att ändra ordning)</div>
+    <div class="rotation-list" id="rot-list"></div>
+
+    <div class="duration-row">
+      <span>Tid per element:</span>
+      <input type="range" min="1" max="10" step="0.5" value="4" id="dur-slider" oninput="updateDur()">
+      <span class="duration-val" id="dur-val">4s</span>
+    </div>
+
+    <div class="section-title">Lägg till element</div>
+    <div class="elem-picker" id="elem-picker"></div>
+
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+      <button class="ctrl-btn" onclick="resetRotation()">Standardrotation</button>
+    </div>
+  </div>
+
+  <div id="panel-notifs" class="panel">
+    <div class="section-title">Målelement & Visuella Effekter</div>
+    <div class="notif-card">
+      <div class="flex-select-row">
+        <span>Varna för element:</span>
+        <select id="target-element-select" onchange="updateTargetElement()">
+          <option value="fire" selected>Fire</option>
+          <option value="holy">Holy</option>
+          <option value="lightning">Lightning</option>
+          <option value="physical">Physical</option>
+          <option value="cold">Cold</option>
+          <option value="arcane">Arcane</option>
+          <option value="poison">Poison</option>
+        </select>
+      </div>
+      
+      <div class="flex-select-row">
+        <span>Förvarning (elementet innan):</span>
+        <select id="pre-warn-display-mode" onchange="updateUI()">
+          <option value="blink">Blinkande ljus</option>
+          <option value="solid">Konstant bakgrundsljus</option>
+          <option value="none" selected>Avstängd</option>
+        </select>
+      </div>
+      <div class="flex-select-row">
+        <span>Färg på förvarning:</span>
+        <input type="color" id="pre-warn-color-picker" value="#0213f5" oninput="updateCustomColors()">
+      </div>
+      
+      <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+      <div class="flex-select-row">
+        <span>Effekt vid Aktivt Mål:</span>
+        <select id="warn-display-mode" onchange="updateUI()">
+          <option value="solid">Konstant ytfärg</option>
+          <option value="blink">Blinkande ytfärg</option>
+          <option value="none" selected>Ingen effekt</option>
+        </select>
+      </div>
+      <div class="flex-select-row">
+        <span>Text & Accentfärg:</span>
+        <input type="color" id="warn-color-picker" value="#db361f" oninput="updateCustomColors()">
+      </div>
+      <div class="flex-select-row">
+        <span>Aktiv ytfärg (bakgrund):</span>
+        <input type="color" id="warn-bg-picker" value="#db361f" oninput="updateCustomColors()">
+      </div>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+      <div class="flex-select-row">
+        <span>Razer Chroma vid Förvarning:</span>
+        <select id="chroma-pre-warn-mode" onchange="updateChromaLighting()">
+          <option value="smart-blink" selected>Smart blink (1Hz ➔ 2Hz)</option>
+          <option value="solid">Konstant Chroma-färg</option>
+          <option value="none">Ingen Chroma-effekt</option>
+        </select>
+      </div>
+
+      <div class="flex-select-row">
+        <span>Razer Chroma vid Aktivt Mål:</span>
+        <select id="chroma-warn-mode" onchange="updateChromaLighting()">
+          <option value="solid" selected>Konstant Chroma-färg</option>
+          <option value="blink">Blinkande Chroma-färg</option>
+          <option value="none">Ingen Chroma-effekt</option>
+        </select>
+      </div>
+      <div class="flex-select-row">
+        <span>Chroma-färg vid Aktivt Mål:</span>
+        <input type="color" id="chroma-active-color-picker" value="#ff0000" oninput="updateChromaLighting()">
+      </div>
+    </div>
+
+    <div class="section-title">Metronom</div>
+    <div class="notif-card">
+      <div class="toggle-row">
+        <span>Aktivera metronom</span>
+        <button class="toggle" id="metro-toggle" onclick="toggleMetro()"></button>
+      </div>
+      <div class="metro-row">
+        <span>BPM:</span>
+        <input type="range" min="40" max="240" value="120" id="bpm-slider" oninput="updateBpm()">
+        <span id="bpm-val" style="font-family:Cinzel,serif;font-weight:600;font-size:14px;color:var(--text);min-width:36px;text-align:right">120</span>
+      </div>
+      <div class="metro-row" style="margin-top:8px">
+        <span>Accentuera Målelement:</span>
+        <button class="toggle on" id="metro-accent" onclick="toggleMetroAccent()"></button>
+      </div>
+    </div>
+
+    <div class="section-title">Röstmeddelanden</div>
+    <div class="notif-card">
+      <div class="toggle-row">
+        <span>Aktivera röst</span>
+        <button class="toggle" id="voice-toggle" onclick="toggleVoice()"></button>
+      </div>
+      <div class="toggle-row" style="margin-top:6px">
+        <span>Röst</span>
+        <select id="voice-select"></select>
+      </div>
+      <div class="toggle-row">
+        <span>Hastighet</span>
+        <input type="range" min="0.5" max="2" step="0.1" value="1.1" id="rate-slider" oninput="document.getElementById('rate-val').textContent=parseFloat(this.value).toFixed(1)+'x'" style="width:100px">
+        <span id="rate-val" style="font-size:12px;min-width:28px;text-align:right;color:var(--text)">1.1x</span>
+      </div>
+    </div>
+
+    <div class="section-title">Röstcues (Sekunder kvar till målet startar)</div>
+    <div id="cue-list"></div>
+    <button class="ctrl-btn" onclick="addCue()" style="margin-top:8px">+ Lägg till cue</button>
+  </div>
+</div>
+
+<script>
+const ELEMENTS = {
+  fire:      { label: 'Fire',      icon: '🔥', color: '#E24B4A', glow: '#F09595' },
+  arcane:    { label: 'Arcane',    icon: '✨', color: '#7F77DD', glow: '#AFA9EC' },
+  cold:      { label: 'Cold',      icon: '❄️', color: '#378ADD', glow: '#85B7EB' },
+  lightning: { label: 'Lightning', icon: '⚡', color: '#EF9F27', glow: '#FAC775' },
+  physical:  { label: 'Physical',  icon: '⚔️', color: '#888780', glow: '#B4B2A9' },
+  poison:    { label: 'Poison',    icon: '🧪', color: '#639922', glow: '#97C459' },
+  holy:      { label: 'Holy',      icon: '✝️', color: '#BAA227', glow: '#FAEEDA' },
+};
+
+const DEFAULT_ROTATION = ['fire','holy','lightning','physical','cold'];
+
+let lastSentColor = -2;      // Håller koll på vilken färg som senast skickades
+let chromaIsReleased = false; // true = vi har lämnat tillbaka kontrollen till Synapse
+
+let rotation = [...DEFAULT_ROTATION];
+let duration = 4;
+let running = false;
+let currentIdx = 0;
+let timeLeft = duration;
+let ticker = null;
+let lastTick = null;
+
+let targetElement = 'fire';
+
+let metroOn = false;
+let metroAccent = true;
+let bpm = 120;
+let metroCtx = null;
+let metroInterval = null;
+
+let voiceOn = false;
+let voices = [];
+let selectedVoice = null;
+
+let chromaUri = null;
+let chromaHeartbeatInterval = null;
+
+let cues = [
+  { secsLeft: 8.4, text: '8', enabled: true },
+  { secsLeft: 4.4, text: '4', enabled: true },
+  { secsLeft: 3.3, text: '3', enabled: true },
+  { secsLeft: 2.2, text: '2', enabled: true },
+  { secsLeft: 1.1, text: '1', enabled: true },
+  { secsLeft: 0.4, text: 'FIRE!', enabled: true, onStart: true }
+];
+let cycleCount = 0;
+let spokenCues = new Set();
+
+// ==========================================
+// RAZER CHROMA API FUNKTIONER
+// ==========================================
+function updateChromaStatusUI(status, color) {
+  const statusBox = document.getElementById('chroma-status');
+  if (statusBox) {
+    statusBox.innerHTML = `Razer Chroma: <span style="background:rgba(0,0,0,0.4); color:${color};">${status}</span>`;
+  }
+}
+
+function hexToChromaColor(hex) {
+  // Chroma SDK använder formatet 0x00BBGGRR (R i lägsta byte)
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return r + (g << 8) + (b << 16);
+}
+
+async function initRazerChroma() {
+  const initData = {
+    "title": "Diablo III CoE Tracker",
+    "description": "Synkar CoE-rotationen till ditt tangentbord",
+    "author": { "name": "CoE Tracker", "contact": "html-app" },
+    "device_supported": ["keyboard"],
+    "category": "game"
+  };
+
+  try {
+    const response = await fetch("http://localhost:54235/razer/chromasdk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(initData)
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      chromaUri = data.uri;
+      updateChromaStatusUI("🟢 ANSLUTEN", "#639922");
+      
+      chromaHeartbeatInterval = setInterval(() => {
+        if (chromaUri) fetch(`${chromaUri}/heartbeat`, { method: "PUT" });
+      }, 5000);
+
+      updateChromaLighting();
+    } else {
+      throw new Error();
+    }
+  } catch(e) {
+    updateChromaStatusUI("🔴 EJ ANSLUTEN (Körs Synapse?)", "#9a8e7a");
+  }
+}
+
+async function sendChromaKeyboardColor(colorValue) {
+  if (!chromaUri) return;
+  try {
+    await fetch(`${chromaUri}/keyboard`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        "effect": "CHROMA_STATIC",
+        "param": { "color": colorValue }
+      })
+    });
+  } catch(e) {}
+}
+
+async function releaseChromaToSynapse() {
+  if (!chromaUri) return;
+  try {
+    // Skicka CHROMA_NONE på session-nivå — det är detta som faktiskt ger
+    // tillbaka kontrollen till Synapse och din vanliga profil
+    await fetch(`${chromaUri}/effect`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "effect": "CHROMA_NONE" })
+    });
+  } catch(e) {}
+}
+
+// Chroma-blink hanteras med en separat timer frikopplad från tick()-loopen
+// chromaBlinkTimer är ett objekt { id, intervalMs, colorValue } eller null
+let chromaBlinkTimer = null;
+let chromaBlinkState = false;
+
+function stopChromaBlink() {
+  if (chromaBlinkTimer) {
+    clearInterval(chromaBlinkTimer.id);
+    chromaBlinkTimer = null;
+  }
+}
+
+function startChromaBlink(intervalMs, colorValue, onToggle) {
+  // Om exakt samma blink redan körs, gör ingenting
+  if (chromaBlinkTimer &&
+      chromaBlinkTimer.intervalMs === intervalMs &&
+      chromaBlinkTimer.colorValue === colorValue) return;
+
+  // Stoppa föregående blink utan att nolla chromaBlinkTimer ännu
+  if (chromaBlinkTimer) clearInterval(chromaBlinkTimer.id);
+
+  chromaBlinkState = false; // börja med "av" så första toggle ger "på"
+
+  function doBlink() {
+    chromaBlinkState = !chromaBlinkState;
+    if (onToggle) onToggle(chromaBlinkState);
+    if (chromaBlinkState) {
+      // "På"-fas: skicka färgen
+      fetch(`${chromaUri}/keyboard`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "effect": "CHROMA_STATIC", "param": { "color": colorValue } })
+      }).catch(() => {});
+    } else {
+      // "Av"-fas: låt Synapse-profilen synas
+      fetch(`${chromaUri}/keyboard`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "effect": "CHROMA_NONE" })
+      }).catch(() => {});
+    }
+  }
+
+  doBlink(); // kör en gång direkt
+  const id = setInterval(doBlink, intervalMs);
+  chromaBlinkTimer = { id, intervalMs, colorValue };
+}
+
+// Visar/döljer varningssiffran synkat med Chroma-blinken
+function setWarnFlashNumber(num) {
+  const el = document.getElementById('warn-flash-num');
+  if (!el) return;
+  if (num === null) {
+    el.classList.remove('visible');
+    el.textContent = '';
+  } else {
+    el.textContent = num;
+    el.classList.add('visible');
+  }
+}
+
+// Håller koll på vilket "läge" Chroma är i just nu för att undvika onödiga API-anrop
+let chromaCurrentMode = null; // 'released' | 'solid:FÄRG' | 'blink:INTERVALL:FÄRG'
+
+function updateChromaLighting() {
+  if (!chromaUri) return;
+
+  const currentKey = rotation[currentIdx];
+  const targetActive = currentKey === targetElement;
+  const chromaWarnMode = document.getElementById('chroma-warn-mode').value;
+  const chromaPreWarnMode = document.getElementById('chroma-pre-warn-mode').value;
+  const tc = targetCountdown();
+  const warnColor = hexToChromaColor(document.getElementById('chroma-active-color-picker').value);
+  const preWarnColor = hexToChromaColor(document.getElementById('pre-warn-color-picker').value);
+
+  // 1. TARGET AKTIVT — fast eller blinkande sken enligt inställning
+  if (targetActive) {
+    setWarnFlashNumber(null);
+    if (chromaWarnMode === 'solid') {
+      const modeKey = `solid:${warnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        stopChromaBlink();
+        sendChromaKeyboardColor(warnColor);
+      }
+    } else if (chromaWarnMode === 'blink') {
+      const modeKey = `blink:250:${warnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        startChromaBlink(250, warnColor);
+      }
+    } else {
+      // "Ingen effekt" vald — faller igenom till vanligt läge
+      const modeKey = `solid:${preWarnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        stopChromaBlink();
+        sendChromaKeyboardColor(preWarnColor);
+      }
+    }
+    return;
+  }
+
+  // 2. FÖRVARNING — 8s: långsam blink, 4s: snabb blink
+  if (tc.secs !== Infinity && tc.secs <= 8.0 && !tc.isActive) {
+    const secsDisplay = Math.ceil(tc.secs); // Heltal: 8, 7, 6...
+    if (chromaPreWarnMode === 'smart-blink') {
+      const intervalMs = tc.secs > 4.0 ? 1000 : 500;
+      const modeKey = `blink:${intervalMs}:${preWarnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        startChromaBlink(intervalMs, preWarnColor, (isOn) => {
+          setWarnFlashNumber(isOn ? secsDisplay : null);
+        });
+      } else {
+        // Blinken körs redan — uppdatera bara siffran på "på"-fasen live
+        if (chromaBlinkState) setWarnFlashNumber(secsDisplay);
+      }
+    } else if (chromaPreWarnMode === 'solid') {
+      setWarnFlashNumber(null);
+      const modeKey = `solid:${preWarnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        stopChromaBlink();
+        sendChromaKeyboardColor(preWarnColor);
+      }
+    } else {
+      // Ingen förvarning vald — faller igenom till vanligt läge
+      setWarnFlashNumber(null);
+      const modeKey = `solid:${preWarnColor}`;
+      if (chromaCurrentMode !== modeKey) {
+        chromaCurrentMode = modeKey;
+        stopChromaBlink();
+        sendChromaKeyboardColor(preWarnColor);
+      }
+    }
+    return;
+  }
+
+  // 3. VANLIGT LÄGE — fast blått sken (förvarningens färg)
+  setWarnFlashNumber(null);
+  const modeKey = `solid:${preWarnColor}`;
+  if (chromaCurrentMode !== modeKey) {
+    chromaCurrentMode = modeKey;
+    stopChromaBlink();
+    sendChromaKeyboardColor(preWarnColor);
+  }
+}
+
+// ==========================================
+// TRACKER KÄRNLOGIK & UI
+// ==========================================
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes("'"+t+"'")));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+}
+
+function renderRing() {
+  const ring = document.getElementById('elem-ring');
+  if(!ring) return;
+  ring.innerHTML = '';
+  rotation.forEach((key, i) => {
+    const el = ELEMENTS[key];
+    const div = document.createElement('div');
+    div.className = 'elem-slot' + (i === currentIdx ? ' active-elem' : '') + (i === (currentIdx+1)%rotation.length ? ' next-elem' : '');
+    div.style.color = el.color;
+    div.innerHTML = `<span class="elem-icon">${el.icon}</span><span class="elem-label">${el.label}</span>`;
+    ring.appendChild(div);
+  });
+  renderMiniRing();
+}
+
+function renderMiniRing() {
+  const ring = document.getElementById('mini-ring');
+  if (!ring) return;
+  ring.innerHTML = '';
+  rotation.forEach((key, i) => {
+    const el = ELEMENTS[key];
+    const div = document.createElement('div');
+    div.className = 'mini-elem' +
+      (i === currentIdx ? ' active-elem' : '') +
+      (i === (currentIdx+1)%rotation.length ? ' next-elem' : '');
+    div.style.color = el.color;
+    div.innerHTML = `<span class="mini-elem-icon">${el.icon}</span><span class="mini-elem-label">${el.label}</span>`;
+    ring.appendChild(div);
+  });
+}
+
+let miniMode = false;
+function toggleMiniMode() {
+  miniMode = !miniMode;
+  document.body.classList.toggle('mini-mode', miniMode);
+  const btn = document.getElementById('mini-toggle-btn');
+  btn.textContent = miniMode ? '⊞ Fullskärm' : '⊡ Mini';
+  // Rulla till toppen i mini-mode
+  if (miniMode) window.scrollTo(0, 0);
+}
+
+function targetCountdown() {
+  if (!rotation.includes(targetElement)) return { secs: Infinity, maxSecs: 1 };
+  let totalMaxSecs = (rotation.length - 1) * duration;
+  
+  if (rotation[currentIdx] === targetElement) {
+    return { secs: timeLeft, maxSecs: totalMaxSecs, isActive: true };
+  }
+  
+  let total = timeLeft;
+  let idx = (currentIdx + 1) % rotation.length;
+  let steps = 0;
+  while (rotation[idx] !== targetElement && steps < rotation.length * 3) {
+    total += duration;
+    idx = (idx + 1) % rotation.length;
+    steps++;
+  }
+  return rotation[idx] === targetElement ? { secs: total, maxSecs: totalMaxSecs, isActive: false } : { secs: Infinity, maxSecs: 1 };
+}
+
+function updateTargetElement() {
+  targetElement = document.getElementById('target-element-select').value;
+  const elementColor = ELEMENTS[targetElement]?.color || '#E24B4A';
+  document.getElementById('warn-color-picker').value = elementColor;
+  updateCustomColors();
+  updateUI();
+}
+
+function updateCustomColors() {
+  const color = document.getElementById('warn-color-picker').value;
+  const bg = document.getElementById('warn-bg-picker').value;
+  const preWarn = document.getElementById('pre-warn-color-picker').value;
+  
+  document.documentElement.style.setProperty('--warn-color', color);
+  document.documentElement.style.setProperty('--warn-bg-active', bg);
+  document.documentElement.style.setProperty('--pre-warn-color', preWarn);
+  updateChromaLighting();
+}
+
+function updateUI() {
+  const el = ELEMENTS[rotation[currentIdx]];
+  if(!el) return;
+  
+  document.getElementById('active-elem-name').textContent = el.label;
+  document.getElementById('active-elem-name').style.color = el.color;
+  
+  const timerNum = document.getElementById('timer-num');
+  timerNum.textContent = timeLeft.toFixed(1);
+  timerNum.style.color = el.color;
+  
+  const next = ELEMENTS[rotation[(currentIdx+1)%rotation.length]];
+  document.getElementById('next-elem-label').textContent = next.icon + ' ' + next.label;
+  document.getElementById('next-elem-label').style.color = next.color;
+  
+  const tc = targetCountdown();
+  const targetActive = rotation[currentIdx] === targetElement;
+  const nextIsTarget = rotation[(currentIdx+1)%rotation.length] === targetElement;
+  
+  const currentTargetLabel = ELEMENTS[targetElement]?.label.toUpperCase() || 'ELEMENT';
+  const banner = document.getElementById('fire-banner');
+  banner.textContent = `🔥 ${currentTargetLabel} AKTIVT 🔥`;
+  banner.style.display = targetActive ? 'block' : 'none';
+  
+  document.body.classList.remove('warn-bg-solid', 'warn-bg-blink', 'pre-warn-blink', 'pre-warn-solid');
+  
+  const activeDisplayMode = document.getElementById('warn-display-mode').value;
+  const preDisplayMode = document.getElementById('pre-warn-display-mode').value;
+  
+  if (targetActive) {
+    if (activeDisplayMode === 'solid') document.body.classList.add('warn-bg-solid');
+    if (activeDisplayMode === 'blink') document.body.classList.add('warn-bg-blink');
+  } else if (nextIsTarget) {
+    if (preDisplayMode === 'blink') document.body.classList.add('pre-warn-blink');
+    if (preDisplayMode === 'solid') document.body.classList.add('pre-warn-solid');
+  }
+  
+  const progressFill = document.getElementById('warn-progress-fill');
+  
+  if (targetActive) {
+    document.getElementById('fire-cd-label').textContent = `${currentTargetLabel} AKTIVT`;
+    document.getElementById('fire-cd-num').textContent = timeLeft.toFixed(1);
+    document.getElementById('fire-cd-sub').textContent = 'sekunder kvar';
+    
+    let percent = (timeLeft / duration) * 100;
+    progressFill.style.width = percent + '%';
+  } else if (tc.secs < Infinity) {
+    document.getElementById('fire-cd-label').textContent = `${currentTargetLabel} OM`;
+    document.getElementById('fire-cd-num').textContent = tc.secs.toFixed(1);
+    document.getElementById('fire-cd-sub').textContent = 'sekunder';
+    
+    let percent = ((tc.maxSecs - tc.secs) / tc.maxSecs) * 100;
+    progressFill.style.width = Math.max(0, Math.min(100, percent)) + '%';
+  } else {
+    document.getElementById('fire-cd-label').textContent = `${currentTargetLabel} OM`;
+    document.getElementById('fire-cd-num').textContent = '—';
+    document.getElementById('fire-cd-sub').textContent = 'Ej i rotation';
+    progressFill.style.width = '0%';
+  }
+  renderRing();
+}
+
+function checkCues() {
+  if (!voiceOn) return;
+  const tc = targetCountdown();
+  const targetNow = rotation[currentIdx] === targetElement;
+  
+  cues.forEach((c, i) => {
+    if (!c.enabled) return;
+    
+    if (c.onStart) {
+      if (targetNow && timeLeft > duration - 0.2) {
+        const ck = 'targetstart_' + cycleCount;
+        if (!spokenCues.has(ck)) { spokenCues.add(ck); speak(c.text); }
+      }
+      return;
+    }
+    
+    if (targetNow) return;
+    
+    if (tc.secs !== Infinity) {
+      const ck = 'cue_' + i + '_' + cycleCount;
+      if (!spokenCues.has(ck) && tc.secs <= c.secsLeft && tc.secs > (c.secsLeft - 0.4)) {
+        spokenCues.add(ck); 
+        speak(c.text);
+      }
+    }
+  });
+}
+
+function tick() {
+  if (!running) return;
+  const now = performance.now();
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    currentIdx = (currentIdx + 1) % rotation.length;
+    timeLeft = duration + timeLeft;
+    cycleCount++;
+  }
+  checkCues();
+  updateUI();
+  updateChromaLighting();
+  ticker = requestAnimationFrame(tick);
+}
+
+function toggleTimer() {
+  running = !running;
+  document.getElementById('start-btn').textContent = running ? 'Pausa' : 'Fortsätt';
+  if (running) {
+    lastTick = performance.now();
+    ticker = requestAnimationFrame(tick);
+    if (metroOn) startMetro();
+  } else {
+    cancelAnimationFrame(ticker);
+    stopMetro();
+  }
+}
+
+function resetTimer() {
+  running = false;
+  cancelAnimationFrame(ticker);
+  stopMetro();
+  stopChromaBlink();
+  chromaCurrentMode = null;
+  currentIdx = 0;
+  timeLeft = duration;
+  cycleCount = 0;
+  spokenCues.clear();
+  document.getElementById('start-btn').textContent = 'Start';
+  updateUI();
+  updateChromaLighting();
+}
+
+function jumpToTarget() {
+  const fi = rotation.indexOf(targetElement);
+  if (fi < 0) return;
+  currentIdx = fi;
+  timeLeft = duration;
+  cycleCount = 0;
+  spokenCues.clear();
+  updateUI();
+  updateChromaLighting();
+}
+
+function renderRotationEditor() {
+  const list = document.getElementById('rot-list');
+  if(!list) return;
+  list.innerHTML = '';
+  rotation.forEach((key, i) => {
+    const el = ELEMENTS[key];
+    const chip = document.createElement('div');
+    chip.className = 'rot-chip';
+    chip.style.background = el.glow + '22';
+    chip.style.color = el.color;
+    chip.style.borderColor = el.glow + '88';
+    chip.draggable = true;
+    chip.dataset.idx = i;
+    chip.innerHTML = `<span>${el.icon}</span><span>${el.label}</span><span class="rot-chip-del" data-i="${i}">×</span>`;
+    chip.querySelector('.rot-chip-del').onclick = () => removeFromRotation(i);
+    chip.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); chip.classList.add('dragging'); });
+    chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+    chip.addEventListener('dragover', e => { e.preventDefault(); chip.classList.add('drag-over'); });
+    chip.addEventListener('dragleave', () => chip.classList.remove('drag-over'));
+    chip.addEventListener('drop', e => {
+      e.preventDefault(); chip.classList.remove('drag-over');
+      const from = parseInt(e.dataTransfer.getData('text/plain'));
+      if (from !== i) {
+        const tmp = rotation.splice(from, 1)[0];
+        rotation.splice(i, 0, tmp);
+        currentIdx = Math.min(currentIdx, rotation.length-1);
+        renderRotationEditor(); updateUI(); updateChromaLighting();
+      }
+    });
+    list.appendChild(chip);
+  });
+}
+
+function removeFromRotation(i) {
+  rotation.splice(i, 1);
+  currentIdx = Math.min(currentIdx, Math.max(0, rotation.length-1));
+  renderRotationEditor(); updateUI(); updateChromaLighting();
+}
+
+function renderPicker() {
+  const picker = document.getElementById('elem-picker');
+  if(!picker) return;
+  picker.innerHTML = '';
+  Object.entries(ELEMENTS).forEach(([key, el]) => {
+    const btn = document.createElement('button');
+    btn.className = 'pick-btn';
+    btn.innerHTML = `<span class="pick-icon">${el.icon}</span><span>${el.label}</span>`;
+    btn.onclick = () => { rotation.push(key); renderRotationEditor(); updateUI(); updateChromaLighting(); };
+    picker.appendChild(btn);
+  });
+}
+
+function updateDur() {
+  duration = parseFloat(document.getElementById('dur-slider').value);
+  document.getElementById('dur-val').textContent = duration + 's';
+  if (!running) timeLeft = duration;
+  updateUI();
+  updateChromaLighting();
+}
+
+function resetRotation() {
+  rotation = [...DEFAULT_ROTATION];
+  currentIdx = 0; timeLeft = duration;
+  renderRotationEditor(); updateUI(); updateChromaLighting();
+}
+
+function startMetro() {
+  if (!metroCtx) metroCtx = new (window.AudioContext || window.webkitAudioContext)();
+  stopMetro();
+  const interval = 60 / bpm * 1000;
+  let beat = 0;
+  function scheduleBeat() {
+    const osc = metroCtx.createOscillator();
+    const gain = metroCtx.createGain();
+    osc.connect(gain); gain.connect(metroCtx.destination);
+    const isTarget = metroAccent && rotation[currentIdx] === targetElement;
+    osc.frequency.value = isTarget ? 1200 : (beat % 4 === 0 ? 880 : 660);
+    gain.gain.setValueAtTime(isTarget ? 0.35 : 0.18, metroCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, metroCtx.currentTime + 0.08);
+    osc.start(metroCtx.currentTime); osc.stop(metroCtx.currentTime + 0.08);
+    beat++;
+  }
+  scheduleBeat();
+  metroInterval = setInterval(scheduleBeat, interval);
+}
+
+function stopMetro() {
+  if (metroInterval) { clearInterval(metroInterval); metroInterval = null; }
+}
+
+function toggleMetro() {
+  metroOn = !metroOn;
+  document.getElementById('metro-toggle').classList.toggle('on', metroOn);
+  if (metroOn && running) startMetro(); else stopMetro();
+}
+
+function toggleMetroAccent() {
+  metroAccent = !metroAccent;
+  document.getElementById('metro-accent').classList.toggle('on', metroAccent);
+}
+
+function updateBpm() {
+  bpm = parseInt(document.getElementById('bpm-slider').value);
+  document.getElementById('bpm-val').textContent = bpm;
+  if (metroOn && running) { stopMetro(); startMetro(); }
+}
+
+function loadVoices() {
+  let all = window.speechSynthesis.getVoices();
+  voices = all.filter(v => v.lang.startsWith('sv') || v.lang.startsWith('en'));
+  if (!voices.length) voices = all;
+  const sel = document.getElementById('voice-select');
+  if(!sel) return;
+  sel.innerHTML = '';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = v.name + ' (' + v.lang + ')';
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => { selectedVoice = voices[parseInt(sel.value)]; };
+  const preferred = voices.findIndex(v => v.name.toLowerCase().includes('google') && v.lang === 'en-US');
+  const fallback = voices.findIndex(v => v.lang === 'en-US');
+  const idx = preferred >= 0 ? preferred : fallback >= 0 ? fallback : 0;
+  sel.value = idx;
+  selectedVoice = voices[idx];
+}
+
+let speechQueue = [];
+let speechBusy = false;
+
+function speak(text) {
+  if (!voiceOn || !text) return;
+  speechQueue = [text];
+  if (!speechBusy) drainSpeechQueue();
+}
+
+function drainSpeechQueue() {
+  if (!speechQueue.length) { speechBusy = false; return; }
+  const text = speechQueue.shift();
+  try {
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    if (selectedVoice) utt.voice = selectedVoice;
+    utt.rate = parseFloat(document.getElementById('rate-slider').value);
+    utt.volume = 1;
+    utt.onend = () => { speechBusy = false; };
+    utt.onerror = () => { speechBusy = false; };
+    speechBusy = true;
+    window.speechSynthesis.speak(utt);
+  } catch(e) { speechBusy = false; }
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  document.getElementById('voice-toggle').classList.toggle('on', voiceOn);
+}
+
+function renderCues() {
+  const c = document.getElementById('cue-list');
+  if(!c) return;
+  c.innerHTML = '';
+  cues.sort((a,b) => b.secsLeft - a.secsLeft).forEach((cue, i) => {
+    const row = document.createElement('div');
+    row.className = 'cue-row';
+    row.innerHTML = `
+      <button class="toggle ${cue.enabled?'on':''}" data-i="${i}" onclick="toggleCue(${i})"></button>
+      <input type="number" value="${cue.onStart?0:cue.secsLeft}" step="0.1" min="0" max="60" onchange="setCueSecs(${i},this.value)" ${cue.onStart?'disabled':''}>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0;min-width:72px">${cue.onStart?'(vid start)':'sek kvar'}</span>
+      <input type="text" value="${cue.text}" onchange="setCueText(${i},this.value)">
+      <span class="cue-del" onclick="removeCue(${i})">×</span>
+    `;
+    c.appendChild(row);
+  });
+}
+
+function toggleCue(i) { cues[i].enabled = !cues[i].enabled; renderCues(); }
+function setCueSecs(i, v) { cues[i].secsLeft = parseFloat(v)||0; }
+function setCueText(i, v) { cues[i].text = v; }
+function removeCue(i) { cues.splice(i,1); renderCues(); }
+function addCue() { cues.push({ secsLeft: 5, text: 'Ny', enabled: true }); renderCues(); }
+
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+}
+
+renderRing();
+renderRotationEditor();
+renderPicker();
+renderCues();
+updateCustomColors();
+updateUI();
+
+initRazerChroma();
+
+let silentAudio = null;
+function startSilentAudio() {
+  if (silentAudio) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(ctx.destination);
+    src.start(0);
+    silentAudio = { ctx, src };
+  } catch(e) {}
+}
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try { await navigator.wakeLock.request('screen'); } catch(e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock();
+
+document.addEventListener('touchstart', function initAudio() {
+  startSilentAudio();
+  document.removeEventListener('touchstart', initAudio);
+}, { once: true });
+document.addEventListener('click', function initAudioClick() {
+  startSilentAudio();
+  document.removeEventListener('click', initAudioClick);
+}, { once: true });
+</script>
+</body>
+</html>
