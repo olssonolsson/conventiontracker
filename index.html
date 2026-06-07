@@ -664,9 +664,8 @@
 
   /* Mini-mode toggle knapp */
   #mini-toggle-btn {
-    position: fixed;
-    top: 10px;
-    right: 10px;
+ 	display: block;
+	margin: 20px auto;
     z-index: 100;
     background: var(--surface2);
     border: 0.5px solid var(--border2);
@@ -732,7 +731,7 @@
 </style>
 </head>
 <body>
-<button id="mini-toggle-btn" onclick="toggleMiniMode()" title="Minimerat läge">⊡ Mini</button>
+
 <div id="app">
   <h1>⚗ Convention of Elements ⚗</h1>
 
@@ -777,6 +776,7 @@
     <div class="chroma-status-box" id="chroma-status">
       Razer Chroma: <span style="color:#9a8e7a;">Söker anslutning...</span>
     </div>
+	  <button id="mini-toggle-btn" onclick="toggleMiniMode()" title="Minimerat läge">⊡ Mini</button>
   </div>
 
   <div id="panel-rotation" class="panel">
